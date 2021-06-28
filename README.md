@@ -1,6 +1,118 @@
 RotorS
 ===============
 
+Customed Version Instructions
+--------------------------------------------------------
+
+This is a customed version to use [VID-Fusion](https://github.com/ZJU-FAST-Lab/VID-Fusion) and [External Forces Reselient Planner](https://github.com/ZJU-FAST-Lab/forces_resilient_planner). The planner in the simulator has been tested on ubuntu 18.04 and ROS Melodic.
+
+### 0.1 Run the customed environment
+
+We use the drone "hummingbird" with a vi sensor for testing. After following the instructions of RotorS setting, you can directly run: 
+
+```
+roslaunch rotors_gazebo fast_run.launch
+```
+
+It will also launch a joy and you can press arrow keys to control the drone. 
+(The joy interface is revised as position control rather than altitude control, which is easier for interface.)
+
+The important topics are:
+
+For planner:
+- subscribers:
+  - `ground truth odom`:  /hummingbird/ground_truth/odometry
+  - `depth camera`:  /hummingbird/vi_sensor/camera_depth/depth/disparity
+
+- publishers:
+  - `traj cmd`:  /hummingbird/command/trajectory
+
+For VIO:
+- subscribers:
+  - `imu_topic`:  /hummingbird/ground_truth/imu
+  - `image_topic`:  /hummingbird/vi_sensor/left/image_raw
+  - `control_topic`:  /hummingbird/thrust
+
+To get camera parameters:
+
+`Camera info`: /hummingbird/vi_sensor/camera_depth/camera/camera_info
+
+
+### 0.2 Revise camera parameters
+
+It's flexible to change its focal length and the position on the drone.
+
+- internal parameters
+
+In `rotors_description/urdf/component_snippets.xacro`, start with line 626, find a macro `vi_sensor_depth_macro` and revise its camera_plugin to change focal length and distortion.
+
+Tutorials for more instructions: http://gazebosim.org/tutorials/?tut=ros_depth_camera
+
+
+- external parameters
+
+In `rotors_description/urdf/mav_with_vi_sensor.gazebo`, to revise the origin xyz and rpy.
+
+```xml
+  <!-- Mount a VI-sensor in front of the Firefly. -->
+  <xacro:vi_sensor_macro
+    namespace="${namespace}/vi_sensor"
+    parent_link="${namespace}/base_link"
+    enable_cameras="true"
+    enable_depth="true"
+    enable_ground_truth="true">
+    <origin xyz="0.1 0.0 0.086" rpy="0.0 0.0 0.0" />
+  </xacro:vi_sensor_macro>
+
+```
+
+### 0.3 Adjust external forces
+
+RotorS has two interfaces to add custom wind: the whole wind distribution or wind during time. For conveience, we also add two easier interfaces. 
+You can both use `joystick` or `disturbance manager` to add external forces.
+
+- By using joystick/keyboard: you can press y/u h/j n/m to add an external force in three dimension
+
+- By disturbance manager: follow the example in disturbance_manager.cpp to add customed force.
+
+
+### 0.4 Other Notes
+
+#### Custom the world file
+
+VID-fusion need features to track, so it's better to change the texture in you environment. In `fast_quad.world`, I add several brick box with different texture, and their model can be found in `rotors_gazebo/models`
+
+
+#### Drone's Mass
+
+Because we use hummingbird for testing, when vi-sensor is placed in the CoG of the quadrotor, the rotors will appear in the camera image.
+However if set in front, it will not stable because of the mass of vi-sensor and need to adjust the parameters of position controller.
+
+To easily avoid the issue, we decrease the mass of vi-sensor near zero and calibrate the mass of drone. By testing during drone's hovering, the mass is mass: 0.745319 now. If you directly clone the original verision, you need to revise it in 
+
+
+#### Drone's Color
+
+In `rotors_description/urdf/hummingbird.xacro` to change the color of the rotors and body of quadrotor.
+
+```xml
+  <!-- Instantiate multirotor_base_macro once -->
+  <xacro:multirotor_base_macro
+    robot_namespace="${namespace}"
+    mass="${mass}"
+    body_width="${body_width}"
+    body_height="${body_height}"
+    use_mesh_file="${use_mesh_file}"
+    color="Grey"
+    mesh_file="${mesh_file}">
+    <xacro:insert_block name="body_inertia" />
+  </xacro:multirotor_base_macro>
+```
+
+
+------------------------
+
+
 RotorS is a MAV gazebo simulator.
 It provides some multirotor models such as the [AscTec Hummingbird](http://www.asctec.de/en/uav-uas-drone-products/asctec-hummingbird/), the [AscTec Pelican](http://www.asctec.de/en/uav-uas-drone-products/asctec-pelican/), or the [AscTec Firefly](http://www.asctec.de/en/uav-uas-drone-products/asctec-firefly/), but the simulator is not limited for the use with these multicopters.
 

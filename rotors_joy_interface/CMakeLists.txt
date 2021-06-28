@@ -7,6 +7,7 @@ find_package(catkin REQUIRED COMPONENTS
   mav_msgs
   sensor_msgs
   trajectory_msgs
+  std_msgs
 )
 include_directories(include ${catkin_INCLUDE_DIRS})
 

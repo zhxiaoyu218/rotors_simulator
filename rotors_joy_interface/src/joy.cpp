@@ -17,26 +17,106 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
+//out put way point
 
 #include "rotors_joy_interface/joy.h"
+#include "mav_msgs/eigen_mav_msgs.h"
 
 #include <mav_msgs/default_topics.h>
+
+#include <Eigen/Core>
+#include <mav_msgs/conversions.h>
+// #include <mav_msgs/default_topics.h>
+// #include <ros/ros.h>
+// #include <std_srvs/Empty.h>
+#include <trajectory_msgs/MultiDOFJointTrajectory.h>
+
+#include <gazebo_msgs/ApplyBodyWrench.h>
+#include <thread>
+#include <chrono>
+#include <std_srvs/Empty.h>
+#include <geometry_msgs/Point.h>
+
+int autoflight = 1;
+#include <visualization_msgs/Marker.h>
+visualization_msgs::Marker target;
+void MarkerShowInit()
+{
+  target.header.frame_id = "world";
+  target.ns = "target";
+  target.action = visualization_msgs::Marker::ADD;
+  target.pose.orientation.w = 1.0;
+  target.type = visualization_msgs::Marker::POINTS;
+
+  target.id = 0;
+  target.scale.x = 0.3;
+  target.scale.y = 0.3;
+  target.color.a = 1;
+  target.color.g = 1;
+}
+
+#include "std_msgs/Int8.h"
+
+
+ros::ServiceClient client;
+
+ros::Publisher trajectory_pub; 
+ros::Publisher disturbance_pub;
+ros::Subscriber pose_sub;
+
+ros::Publisher marker_rviz_pub;
+
+Eigen::Vector3d position_gt;
+double yaw_gt;
+double PI = 3.1415926;
+
+
+
+void gt_callback(const nav_msgs::Odometry::ConstPtr &msg)
+{
+    position_gt[0] = msg->pose.pose.position.x;
+    position_gt[1] = msg->pose.pose.position.y;
+    position_gt[2] = msg->pose.pose.position.z;
+
+
+    Eigen::Quaterniond quaternion;
+    quaternion.w() = msg->pose.pose.orientation.w;
+    quaternion.x() = msg->pose.pose.orientation.x;
+    quaternion.y() = msg->pose.pose.orientation.y;
+    quaternion.z() = msg->pose.pose.orientation.z;
+
+  
+    Eigen::Vector3d temp2;
+    mav_msgs::getEulerAnglesFromQuaternion(quaternion, &temp2);
+
+    yaw_gt =  temp2(2);
+
+
+}
+int N = 20;
+double R = 2, V = 1;
+double dis_min = 1;
 
 Joy::Joy() {
   ros::NodeHandle nh;
   ros::NodeHandle pnh("~");
-  ctrl_pub_ = nh_.advertise<mav_msgs::RollPitchYawrateThrust> (
-    mav_msgs::default_topics::COMMAND_ROLL_PITCH_YAWRATE_THRUST, 10);
 
-  control_msg_.roll = 0;
-  control_msg_.pitch = 0;
-  control_msg_.yaw_rate = 0;
-  control_msg_.thrust.x = 0;
-  control_msg_.thrust.y = 0;
-  control_msg_.thrust.z = 0;
-  current_yaw_vel_ = 0;
+  trajectory_pub =
+      nh_.advertise<trajectory_msgs::MultiDOFJointTrajectory>(
+          mav_msgs::default_topics::COMMAND_TRAJECTORY, 10);
 
+  disturbance_pub = nh_.advertise<std_msgs::Int8>("disturbance/cmd", 10);
+
+  pose_sub = nh_.subscribe("/hummingbird/ground_truth/odometry", 100, gt_callback, ros::TransportHints().tcpNoDelay()); //identification
+
+
+  pnh.param("autoflight", autoflight, 0);
+
+  pnh.param("velocity", V, 1.0);
+  pnh.param("Num", N, 20);
+  pnh.param("Radius", R, 2.0);
+  pnh.param("dis_min", dis_min, 1.0);
+  
   pnh.param("axis_roll_", axes_.roll, 0);
   pnh.param("axis_pitch_", axes_.pitch, 1);
   pnh.param("axis_thrust_", axes_.thrust, 2);
@@ -45,15 +125,7 @@ Joy::Joy() {
   pnh.param("axis_direction_pitch", axes_.pitch_direction, 1);
   pnh.param("axis_direction_thrust", axes_.thrust_direction, 1);
 
-  pnh.param("max_v_xy", max_.v_xy, 1.0);  // [m/s]
-  pnh.param("max_roll", max_.roll, 10.0 * M_PI / 180.0);  // [rad]
-  pnh.param("max_pitch", max_.pitch, 10.0 * M_PI / 180.0);  // [rad]
-  pnh.param("max_yaw_rate", max_.rate_yaw, 45.0 * M_PI / 180.0);  // [rad/s]
-  pnh.param("max_thrust", max_.thrust, 30.0);  // [N]
-
   pnh.param("v_yaw_step", v_yaw_step_, 0.05);  // [rad/s]
-
-  pnh.param("is_fixed_wing", is_fixed_wing_, false);
 
   pnh.param("button_yaw_left_", buttons_.yaw_left, 3);
   pnh.param("button_yaw_right_", buttons_.yaw_right, 4);
@@ -62,58 +134,151 @@ Joy::Joy() {
   pnh.param("button_takeoff_", buttons_.takeoff, 7);
   pnh.param("button_land_", buttons_.land, 8);
 
+  /*
+  botton: 
+  lf:4 rf:5 Y3 B1 X2 A0
+   */
+
+
   namespace_ = nh_.getNamespace();
-  joy_sub_ = nh_.subscribe("joy", 10, &Joy::JoyCallback, this);
+  joy_sub_ = nh_.subscribe("joy", 1000, &Joy::JoyCallback, this);
+  client = nh_.serviceClient<gazebo_msgs::ApplyBodyWrench>("/gazebo/apply_body_wrench");
+
 }
 
-void Joy::StopMav() {
-  control_msg_.roll = 0;
-  control_msg_.pitch = 0;
-  control_msg_.yaw_rate = 0;
-  control_msg_.thrust.x = 0;
-  control_msg_.thrust.y = 0;
-  control_msg_.thrust.z = 0;
-}
 
 void Joy::JoyCallback(const sensor_msgs::JoyConstPtr& msg) {
   current_joy_ = *msg;
-  control_msg_.roll = msg->axes[axes_.roll] * max_.roll * axes_.roll_direction;
-  control_msg_.pitch = msg->axes[axes_.pitch] * max_.pitch * axes_.pitch_direction;
+  // std::cout << "joy " << std::endl;
+  static double x_,  y_, z_ , yaw_;
+  static bool buttons_up_midyaw_p = true, buttons_up_midyaw_n = true;
+  std::cout << "Joy::JoyCallback" << std::endl; 
 
-  if (msg->buttons[buttons_.yaw_left]) {
-    current_yaw_vel_ = max_.rate_yaw;
-  }
-  else if (msg->buttons[buttons_.yaw_right]) {
-    current_yaw_vel_ = -max_.rate_yaw;
-  }
-  else {
-    current_yaw_vel_ = 0;
-  }
-  control_msg_.yaw_rate = current_yaw_vel_;
+  x_ = position_gt[0] + msg->axes[0]*1.0;
+  y_ = position_gt[1] + msg->axes[1]*1.0;
+  z_ = position_gt[2] + msg->axes[2]*1.0;
 
-  if (is_fixed_wing_) {
-    double thrust = msg->axes[axes_.thrust] * axes_.thrust_direction;
-    control_msg_.thrust.x = (thrust >= 0.0) ? thrust : 0.0;
-  }
-  else {
-    control_msg_.thrust.z = (msg->axes[axes_.thrust] + 1) * max_.thrust / 2.0 * axes_.thrust_direction;
+  // if(msg->buttons[my_button.mid_yaw_p])  
+  // {
+  //   if(buttons_up_midyaw_p)
+  //   {
+  //     yaw0 += 30 * M_PI / 180.0; 
+  //     buttons_up_midyaw_p = false;
+  //   // yaw0 =  yaw0>120*M_PI/180.0 ? 120*M_PI/180.0 : yaw0; 
+  //   }
+  // }
+  // else
+  // {
+  //   buttons_up_midyaw_p = true;
+  // }
+  // if(msg->buttons[my_button.mid_yaw_n])  
+  // {
+  //   if(buttons_up_midyaw_n)
+  //   {
+  //     yaw0 -= 30 * M_PI / 180.0; 
+  //     // yaw0 =  yaw0<-120*M_PI/180.0 ? -120*M_PI/180.0 : yaw0;
+  //     buttons_up_midyaw_n = false;
+  //   }
+  // }
+  // else
+  // {
+  //   buttons_up_midyaw_n = true;
+  // }
+  
+  if (yaw_gt  +  msg->axes[6]*PI > PI){
+    yaw_ = PI;
   }
 
-  ros::Time update_time = ros::Time::now();
-  control_msg_.header.stamp = update_time;
-  control_msg_.header.frame_id = "rotors_joy_frame";
-  Publish();
-}
+  if (yaw_gt  +  msg->axes[6]*PI < -PI){
+    yaw_ = -PI;
+  }
 
-void Joy::Publish() {
-  ctrl_pub_.publish(control_msg_);
+  yaw_ =  yaw_gt  +  msg->axes[6]*3.1415926;
+
+  // std::cout << "T: " << msg->axes[my_axes.thrust] << " " << msg->axes[my_axes.pitch] << " " << msg->axes[my_axes.roll] << " " << msg->axes[my_axes.yaw] << std::endl;
+  // std::cout << "B: " << msg->buttons[0] << msg->buttons[1] << msg->buttons[2] << msg->buttons[3] << msg->buttons[4] << msg->buttons[5] << msg->buttons[6] << msg->buttons[7] << msg->buttons[8] << msg->buttons[9] << std::endl;
+
+  // gazebo_msgs::ApplyBodyWrench srv;
+  // srv.request.body_name = "hummingbird::hummingbird/base_link";
+  // geometry_msgs::Point P;
+  // P.x = 0.0;
+  // P.y = 0.0;
+  // P.z = 0.0;
+  // srv.request.reference_point = P;
+  // // srv.request.start_time = ros::Time;
+  // srv.request.wrench.force.x = msg->axes[3];//10  //world frame
+  // srv.request.wrench.force.y = msg->axes[4];
+  // srv.request.wrench.force.z = msg->axes[5];
+  // srv.request.wrench.torque.x = 0.0;  //0.4//axis is in world axis but center in body
+  // srv.request.wrench.torque.y = 0.0;
+  // srv.request.wrench.torque.z = 0.0;
+  // srv.request.duration.sec = 10;//100000000;
+  // srv.request.reference_frame = "world"; //world(inertial) hummingbird/base_link same result ？？？？TODO change the force and torque to body frame  //now it is world frame direction at the body point
+
+  // client.call(srv);
+
+
+  // if(msg->buttons[my_button.force]) //Y
+  // {
+  //   #if 0
+  //   gazebo_msgs::ApplyBodyWrench srv;
+  //   srv.request.body_name = "hummingbird::hummingbird/base_link";
+  //   geometry_msgs::Point P;
+  //   P.x = 0.0;
+  //   P.y = 0.0;
+  //   P.z = 0.0;
+  //   srv.request.reference_point = P;
+  //   // srv.request.start_time = ros::Time;
+  //   srv.request.wrench.force.x = 10.0;//10  //world frame
+  //   srv.request.wrench.force.y = 0.0;
+  //   srv.request.wrench.force.z = 0.0;
+  //   srv.request.wrench.torque.x = 0.0;  //0.4//axis is in world axis but center in body
+  //   srv.request.wrench.torque.y = 0.0;
+  //   srv.request.wrench.torque.z = 0.0;
+  //   srv.request.duration.sec = 10;//100000000;
+  //   // srv.request.reference_frame = "world"; //world(inertial) hummingbird/base_link same result ？？？？TODO change the force and torque to body frame  //now it is world frame direction at the body point
+
+  //   client.call(srv);
+  //   // bool unpaused = ros::service::call("/gazebo/apply_body_wrench '{body_name: "hummingbird::hummingbird/base_link",reference_point: {x: 0.0, y: 0.0, z: 0.0}, wrench:{ force: {x: 10, y: 0.0, z: 0.0}}, start_time: 0, duration: 1000000000}'", srv);
+  //   #endif
+   
+  //   // if(unpaused)
+  //   std_msgs::Int8 disturbance_cmd;
+  //   disturbance_cmd.data = 1;
+  //   disturbance_pub.publish(disturbance_cmd);
+  //     // ROS_INFO("apply force ! ");
+  //   // else
+  //   //   ROS_INFO("apply force fail! ");
+  // }
+
+  if(!autoflight)
+  {
+    trajectory_msgs::MultiDOFJointTrajectory trajectory_msg;
+    trajectory_msg.header.stamp = ros::Time::now();
+
+    // Default desired position and yaw.
+    //std::cout << "x y z yaw: " << x_ << " " << y_ << " " << z_ << " " << yaw_ << std::endl;
+    Eigen::Vector3d desired_position(x_, y_, z_);
+    double desired_yaw = yaw_;
+    // Eigen::Vector3d desired_position(0.0, 0.0, 1.0);
+    // double desired_yaw = 0.0;
+
+    mav_msgs::msgMultiDofJointTrajectoryFromPositionYaw(
+        desired_position, desired_yaw, &trajectory_msg);
+    trajectory_pub.publish(trajectory_msg);  
+  }
+  
+
+  std::cout << "joy" << std::endl; 
 }
 
 int main(int argc, char** argv) {
+
   ros::init(argc, argv, "rotors_joy_interface");
   Joy joy;
 
   ros::spin();
+
 
   return 0;
 }

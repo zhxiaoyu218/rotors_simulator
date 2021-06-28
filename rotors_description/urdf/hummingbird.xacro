@@ -61,6 +61,7 @@ for Quadrocopter Control by Jian Wang et al.) -->
     body_width="${body_width}"
     body_height="${body_height}"
     use_mesh_file="${use_mesh_file}"
+    color="Grey"  
     mesh_file="${mesh_file}">
     <xacro:insert_block name="body_inertia" />
   </xacro:multirotor_base_macro>

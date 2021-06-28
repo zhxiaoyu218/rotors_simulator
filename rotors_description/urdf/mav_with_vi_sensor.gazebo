@@ -30,6 +30,24 @@
     enable_cameras="true"
     enable_depth="true"
     enable_ground_truth="true">
-    <origin xyz="0.1 0.0 -0.03" rpy="0.0 0.1 0.0" />
+    <origin xyz="0.1 0.0 0.086" rpy="0.0 0.0 0.0" />
   </xacro:vi_sensor_macro>
+
+
+  <!-- Add a wind gust starting at 40s and lasting for 2s. -->
+  <!--<xacro:wind_plugin_macro
+    namespace="${namespace}"
+    xyz_offset="0 0 0"
+    wind_direction="1 0 0"
+    wind_force_mean="0"
+    wind_gust_direction="1 1 0"
+    wind_gust_duration="5"
+    wind_gust_start="40"
+    wind_gust_force_mean="4"
+    use_custom_static_wind_field="false"
+    custom_wind_field_path="~/.ros"
+    wind_speed_mean="0">
+  </xacro:wind_plugin_macro> -->
+
+
 </robot>

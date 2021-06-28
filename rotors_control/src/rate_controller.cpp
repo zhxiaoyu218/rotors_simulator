@@ -22,7 +22,7 @@
 
 RateController::RateController()
     : gravity_(9.81),
-      mass_(1.56779) {
+      mass_(0.745319) {
 }
 RateController::~RateController() {}
 
@@ -37,17 +37,21 @@ void RateController::InitializeParams() {
   gain_angular_rate_(1) = 0.52;//0.6;
   gain_angular_rate_(2) = 0.025;
 
-  amount_rotors_ = 6;
-  allocation_matrix_.resize(4,amount_rotors_);
-  allocation_matrix_ << sin(M_PI/6),  1,  sin(M_PI/6), -sin(M_PI/6), -1, -sin(M_PI/6),
-                       -cos(M_PI/6),  0,  cos(M_PI/6),  cos(M_PI/6), 0, -cos(M_PI/6),
-                       -1,  1, -1,  1, -1, 1,
-                        1,  1,  1,  1, 1, 1;
+  amount_rotors_ = 4;
+  allocation_matrix_.resize(4, amount_rotors_);
+  allocation_matrix_ << 1,  1, -1, -1,
+                        1, -1, -1,  1,
+                       -1,  1, -1,  1,
+                        1,  1,  1,  1;
 
-  inertia_matrix_<< 0.0347563,  0,  0,
-                    0,  0.0458929,  0,
-                    0,  0, 0.0977;
+  inertia_matrix_<< 0.007,  0,  0,
+                    0,  0.007,  0,
+                    0,  0,  0.012;
 
+  // allocation_matrix_ << sin(M_PI/6),  1,  sin(M_PI/6), -sin(M_PI/6), -1, -sin(M_PI/6),
+  //                      -cos(M_PI/6),  0,  cos(M_PI/6),  cos(M_PI/6), 0, -cos(M_PI/6),
+  //                      -1,  1, -1,  1,
+  //                       1,  1,  1,  1;
   // to make the tuning independent of the inertia matrix we divide here
   gain_angular_rate_ = gain_angular_rate_.transpose() * inertia_matrix_.inverse();
 
@@ -55,7 +59,7 @@ void RateController::InitializeParams() {
   const double rotor_moment_constant = 0.016;  // M_i = k_m * F_i
 
   angular_acc_to_rotor_velocities_.resize(amount_rotors_, 4);
-  const double arm_length = 0.215;
+  const double arm_length = 0.17;
 
   Eigen::Matrix4d K;
   K.setZero();

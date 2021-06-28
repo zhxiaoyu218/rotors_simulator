@@ -10,12 +10,12 @@ import pygame, sys, os
 from pygame.locals import *
 
 pygame.init()
-BLACK = (0,0,0)
-WIDTH = 335
-HEIGHT = 406
+WHITE = (0,0,0)
+WIDTH = 485
+HEIGHT = 530
 windowSurface = pygame.display.set_mode((WIDTH, HEIGHT), 0, 32)
-windowSurface.fill(BLACK)
-pygame.display.set_caption('Virtual RC Joystick')
+windowSurface.fill(WHITE)
+pygame.display.set_caption('Position Controller Joystick')
 
 # Fill background
 background = pygame.Surface(windowSurface.get_size())
@@ -31,7 +31,7 @@ windowSurface.blit(img,(0,0))
 pygame.display.flip()
 
 class stick_state(object):
-    def __init__(self, name, stick, key_up, key_down, spring_back=True, incr_val=0.2):
+    def __init__(self, name, stick, key_up, key_down, spring_back=True, incr_val=0.1):
         self.name = name                            # The name of the stick
         self.stick = stick                          # The stick on the joystick that this stick maps to 
         self.key_up = key_up                        # The key on the keyboard that maps to this stick increment
@@ -63,13 +63,16 @@ class stick_state(object):
             # Saturated
             self.val = self.max_val
 
+
     def keypress_down(self):
+
         self.active_down = True
         if (self.val - self.incr_val) >= self.min_val:
             self.val = self.val - self.incr_val
         else:
             # Saturated
             self.val = self.min_val
+
 
     def release_stick(self):
         if not self.spring_back:
@@ -86,7 +89,7 @@ class stick_state(object):
         # emit effeciently
         if abs(int(round(self.val)) - int(self.emit_val)) > 0.001:
             self.emit_val = int(round(self.val))
-            device.emit(self.stick, int(self.emit_val), syn=False)
+            device.emit(self.stick, 255-int(self.emit_val), syn=False)
             if self.display_ready:
                 self.display()
 
@@ -140,6 +143,7 @@ class stick_state(object):
             elif (event.key == self.key_down):
                 self.active = True
                 self.keypress_down()
+                
 
     def update_stick(self, device):
         if self.active_up:
@@ -157,30 +161,46 @@ def main():
         uinput.BTN_JOYSTICK,
         uinput.ABS_X + (0, 255, 0, 0),
         uinput.ABS_Y + (0, 255, 0, 0),
-        uinput.ABS_THROTTLE + (0, 255, 0, 0),
-        uinput.ABS_RUDDER + (0, 255, 0, 0),
+        uinput.ABS_Z + (0, 255, 0, 0),
+        uinput.ABS_RX + (0, 255, 0, 0),
+        uinput.ABS_RY + (0, 255, 0, 0),
+        uinput.ABS_RZ + (0, 255, 0, 0),
+        uinput.ABS_RUDDER + (0, 255, 0, 0),               
         )
 
     sticks = []
 
-    # create sticks
-    roll_stick = stick_state('Roll', uinput.ABS_X, K_RIGHT, K_LEFT)
-    roll_stick.set_display(21, 39, True)
-    sticks.append(roll_stick)
-    pitch_stick = stick_state('Pitch', uinput.ABS_Y, K_UP, K_DOWN)
-    pitch_stick.set_display(328, 198, False)
-    sticks.append(pitch_stick)
-    thr_stick = stick_state('Throttle', uinput.ABS_THROTTLE, K_w, K_s, False)
-    thr_stick.set_display(328, 95, False)
-    sticks.append(thr_stick)
-    rud_stick = stick_state('Yaw', uinput.ABS_RUDDER, K_d, K_a)
-    rud_stick.set_display(360, 39, True)
-    sticks.append(rud_stick)
+    # create sticks    # the order is changed
+    x_stick = stick_state('X', uinput.ABS_X, K_UP, K_DOWN)
+    x_stick.set_display(320, 90, False)
+    sticks.append(x_stick)
+    y_stick = stick_state('Y', uinput.ABS_Y, K_LEFT, K_RIGHT)
+    y_stick.set_display(320, 180, False)
+    sticks.append(y_stick)
+    z_stick = stick_state('Z', uinput.ABS_Z, K_w, K_s)
+    z_stick.set_display(320, 270, False)
+    sticks.append(z_stick)
+    yaw_stick = stick_state('Yaw', uinput.ABS_RUDDER, K_d, K_a)
+    yaw_stick.set_display(320, 360, False)
+    sticks.append(yaw_stick)
+
+    extforce_stick = stick_state('extforceX', uinput.ABS_RX, K_u, K_y)
+    extforce_stick.set_display(410, 120, True)
+    sticks.append(extforce_stick)
+    extforce_stick = stick_state('extforceY', uinput.ABS_RY, K_j, K_h)
+    extforce_stick.set_display(450,  120, True)
+    sticks.append(extforce_stick)
+    extforce_stick = stick_state('extforceZ', uinput.ABS_RZ, K_m, K_n)
+    extforce_stick.set_display(490,  120, True)
+    sticks.append(extforce_stick)
 
     with uinput.Device(events) as device:
+
+
         while True:
             # event handling loop
             for event in pygame.event.get():
+                
                 for stick in sticks:
                     stick.update_event(event)
             for stick in sticks:
