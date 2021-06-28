@@ -1,20 +1,17 @@
-RotorS
-===============
-
-Customed Version Instructions
+Customized Version Instructions for Resilient Planner
 --------------------------------------------------------
 
-This is a customed version to use [VID-Fusion](https://github.com/ZJU-FAST-Lab/VID-Fusion) and [External Forces Reselient Planner](https://github.com/ZJU-FAST-Lab/forces_resilient_planner). The planner in the simulator has been tested on ubuntu 18.04 and ROS Melodic.
+This is a customized version to use [VID-Fusion](https://github.com/ZJU-FAST-Lab/VID-Fusion) and [External Forces Reselient Planner](https://github.com/ZJU-FAST-Lab/forces_resilient_planner). The planner in the simulator has been tested on ubuntu 18.04 and ROS Melodic.
 
 ### 0.1 Run the customed environment
 
 We use the drone "hummingbird" with a vi sensor for testing. After following the instructions of RotorS setting, you can directly run: 
 
 ```
-roslaunch rotors_gazebo fast_run.launch
+source devel/setup.bash && roslaunch rotors_gazebo fast_run.launch
 ```
 
-It will also launch a joy and you can press arrow keys to control the drone. 
+It will also launch a virtual joystick window and you can press keyboard to control the drone. 
 (The joy interface is revised as position control rather than altitude control, which is easier for interface.)
 
 The important topics are:
@@ -111,7 +108,8 @@ In `rotors_description/urdf/hummingbird.xacro` to change the color of the rotors
 
 
 ------------------------
-
+RotorS
+===============
 
 RotorS is a MAV gazebo simulator.
 It provides some multirotor models such as the [AscTec Hummingbird](http://www.asctec.de/en/uav-uas-drone-products/asctec-hummingbird/), the [AscTec Pelican](http://www.asctec.de/en/uav-uas-drone-products/asctec-pelican/), or the [AscTec Firefly](http://www.asctec.de/en/uav-uas-drone-products/asctec-firefly/), but the simulator is not limited for the use with these multicopters.
