@@ -152,7 +152,6 @@ void Joy::JoyCallback(const sensor_msgs::JoyConstPtr& msg) {
   // std::cout << "joy " << std::endl;
   static double x_,  y_, z_ , yaw_;
   static bool buttons_up_midyaw_p = true, buttons_up_midyaw_n = true;
-  std::cout << "Joy::JoyCallback" << std::endl; 
 
   x_ = position_gt[0] + msg->axes[0]*1.0;
   y_ = position_gt[1] + msg->axes[1]*1.0;
@@ -198,24 +197,24 @@ void Joy::JoyCallback(const sensor_msgs::JoyConstPtr& msg) {
   // std::cout << "T: " << msg->axes[my_axes.thrust] << " " << msg->axes[my_axes.pitch] << " " << msg->axes[my_axes.roll] << " " << msg->axes[my_axes.yaw] << std::endl;
   // std::cout << "B: " << msg->buttons[0] << msg->buttons[1] << msg->buttons[2] << msg->buttons[3] << msg->buttons[4] << msg->buttons[5] << msg->buttons[6] << msg->buttons[7] << msg->buttons[8] << msg->buttons[9] << std::endl;
 
-  // gazebo_msgs::ApplyBodyWrench srv;
-  // srv.request.body_name = "hummingbird::hummingbird/base_link";
-  // geometry_msgs::Point P;
-  // P.x = 0.0;
-  // P.y = 0.0;
-  // P.z = 0.0;
-  // srv.request.reference_point = P;
-  // // srv.request.start_time = ros::Time;
-  // srv.request.wrench.force.x = msg->axes[3];//10  //world frame
-  // srv.request.wrench.force.y = msg->axes[4];
-  // srv.request.wrench.force.z = msg->axes[5];
-  // srv.request.wrench.torque.x = 0.0;  //0.4//axis is in world axis but center in body
-  // srv.request.wrench.torque.y = 0.0;
-  // srv.request.wrench.torque.z = 0.0;
-  // srv.request.duration.sec = 10;//100000000;
-  // srv.request.reference_frame = "world"; //world(inertial) hummingbird/base_link same result ？？？？TODO change the force and torque to body frame  //now it is world frame direction at the body point
+  gazebo_msgs::ApplyBodyWrench srv;
+  srv.request.body_name = "hummingbird::hummingbird/base_link";
+  geometry_msgs::Point P;
+  P.x = 0.0;
+  P.y = 0.0;
+  P.z = 0.0;
+  srv.request.reference_point = P;
+  // srv.request.start_time = ros::Time;
+  srv.request.wrench.force.x = msg->axes[3];//10  //world frame
+  srv.request.wrench.force.y = msg->axes[4];
+  srv.request.wrench.force.z = msg->axes[5];
+  srv.request.wrench.torque.x = 0.0;  //0.4//axis is in world axis but center in body
+  srv.request.wrench.torque.y = 0.0;
+  srv.request.wrench.torque.z = 0.0;
+  srv.request.duration.sec = 10;//100000000;
+  srv.request.reference_frame = "world"; //world(inertial) hummingbird/base_link same result ？？？？TODO change the force and torque to body frame  //now it is world frame direction at the body point
 
-  // client.call(srv);
+  client.call(srv);
 
 
   // if(msg->buttons[my_button.force]) //Y
