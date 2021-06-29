@@ -256,7 +256,6 @@ void Joy::JoyCallback(const sensor_msgs::JoyConstPtr& msg) {
     trajectory_msg.header.stamp = ros::Time::now();
 
     // Default desired position and yaw.
-    //std::cout << "x y z yaw: " << x_ << " " << y_ << " " << z_ << " " << yaw_ << std::endl;
     Eigen::Vector3d desired_position(x_, y_, z_);
     double desired_yaw = yaw_;
     // Eigen::Vector3d desired_position(0.0, 0.0, 1.0);

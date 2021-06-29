@@ -65,6 +65,7 @@
      <param name="init_state_z" value="$(arg init_z)"/>
    </node>
 
+  <node name="disturbance_manager" pkg="rotors_gazebo" type="disturbance_manager" output="screen"/>
 
   <!--launch rviz-->
     <node name="rviz" pkg="rviz" type="rviz" respawn="false" args="-d $(find rotors_gazebo)/launch/simulator.rviz"/>
