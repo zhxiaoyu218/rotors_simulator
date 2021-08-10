@@ -8,7 +8,7 @@ This is a customized version to use [VID-Fusion](https://github.com/ZJU-FAST-Lab
 We use the drone "hummingbird" with a vi sensor for testing. After following the instructions of RotorS setting, you can directly run: 
 
 ```
-source devel/setup.bash && roslaunch rotors_gazebo fast_run.launch
+source devel/setup.bash && roslaunch rotors_gazebo fast_with_vi_sensor.launch
 ```
 
 It will also launch a virtual joystick window and you can press keyboard to control the drone. 
