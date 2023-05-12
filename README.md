@@ -27,7 +27,7 @@ $ sudo apt install python-rosinstall python-rosinstall-generator build-essential
 ```console
 $ mkdir -p ~/catkin_ws/src && cd ~/catkin_ws/
 $ catkin init --workspace .
-$ cd src && git clone https://github.com/yuwei-wu/rotors_simulator
+$ cd src && git clone https://github.com/zhxiaoyu218/rotors_simulator.git
 $ cd rotors_simular
 $ wstool init
 $ wstool merge rotors_hil.rosinstall
